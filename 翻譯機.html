@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小說翻譯器（GPT內建版）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f7f7f7;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      font-size: 16px;
+      resize: vertical;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .output {
+      white-space: pre-wrap;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      min-height: 150px;
+    }
+    .debug {
+      font-size: 12px;
+      color: #666;
+      background: #eee;
+      padding: 10px;
+      border: 1px dashed #aaa;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>小說翻譯器（GPT內建版）</h2>
+
+  <label>原文（韓文）</label>
+  <textarea id="sourceText"></textarea>
+
+  <label>固定角色名稱（每行一對，格式：韓文名：中文名）</label>
+  <textarea id="nameMap" placeholder="例如：\n주인공：李炯熙\n하늘：韓天"></textarea>
+
+  <button id="translateBtn">翻譯！</button>
+
+  <h3>翻譯結果：</h3>
+  <div class="output" id="resultBox">（這裡會顯示翻譯結果）</div>
+
+  <h3>除錯資訊（Debug Log）：</h3>
+  <div class="debug" id="debugBox">（這裡會顯示除錯回應內容）</div>
+
+  <script>
+    document.getElementById("translateBtn").addEventListener("click", async function () {
+      const text = document.getElementById("sourceText").value;
+      const nameMap = document.getElementById("nameMap").value.trim();
+      const resultBox = document.getElementById("resultBox");
+      const debugBox = document.getElementById("debugBox");
+
+      resultBox.textContent = "翻譯中...";
+      debugBox.textContent = "等待 API 回應...";
+
+      let nameInstruction = "";
+      if (nameMap) {
+        nameInstruction = `請固定下列人名翻譯：\n${nameMap}\n請不要將人名直譯或變化，並保留敘事節奏。`;
+      }
+
+      const prompt = `請將以下韓文小說內容翻譯為自然流暢的中文，保留文學語氣與句型節奏。\n${nameInstruction}\n---\n${text}`;
+
+      try {
+        const response = await fetch("https://openai-proxy.aery.workers.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: "你是一位擅長翻譯文學作品的專業譯者。" },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.7
+          })
+        });
+
+        const data = await response.json();
+        debugBox.textContent = JSON.stringify(data, null, 2);
+
+        if (data.choices && data.choices.length > 0) {
+          resultBox.textContent = data.choices[0].message.content;
+        } else {
+          resultBox.textContent = '翻譯失敗：無回應內容';
+        }
+      } catch (error) {
+        resultBox.textContent = '翻譯失敗：' + error.message;
+        debugBox.textContent = error.stack;
+      }
+    });
+  </script>
+</body>
+</html>
